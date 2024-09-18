@@ -20,17 +20,18 @@ export async function POST(req: NextRequest) {
   }
   try {
     const data = createSpaceSchema.parse(body);
-    await prisma.space.create({
+    const space = await prisma.space.create({
       data: {
         name: data.name,
         userId: session.user.id
       }
     })
     return NextResponse.json({
-      message: "Space Created"
+      id: space.id
     })
   }
   catch (e) {
+    console.log(e);
     return NextResponse.json({
       message: "Error while creating a space"
     }, {
