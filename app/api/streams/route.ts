@@ -77,7 +77,6 @@ export async function GET(req: NextRequest) {
   }
 
   const user = session.user;
-  console.log(user)
 
   if (!spaceId) {
     return NextResponse.json({
@@ -87,6 +86,61 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  return NextResponse.json({ message: "Done" })
+  const [space, activeStream] = await Promise.all([
+    prisma.space.findUnique({
+      where: {
+        id: spaceId,
+      },
+      include: {
+        streams: {
+          include: {
+            _count: {
+              select: {
+                upvotes: true
+              }
+            },
+            upvotes: {
+              where: {
+                userId: session?.user.id
+              }
+            }
 
+          },
+          where: {
+            played: false
+          }
+        },
+        _count: {
+          select: {
+            streams: true
+          }
+        },
+
+      }
+
+    }),
+    prisma.currentStream.findFirst({
+      where: {
+        spaceId: spaceId
+      },
+      include: {
+        stream: true
+      }
+    })
+  ]);
+
+  const hostId = space?.userId;
+  const isCreator = session.user.id === hostId
+
+  return NextResponse.json({
+    streams: space?.streams.map(({ _count, ...rest }) => ({
+      ...rest,
+      upvotes: _count.upvotes,
+      haveUpvoted: rest.upvotes.length ? true : false
+    })),
+    activeStream,
+    hostId,
+    isCreator,
+    spaceName: space?.name
+  });
 }
